@@ -1,60 +1,92 @@
 #!/usr/bin/env ruby
 
-module Task
+class Task
+
 	OPTIONS_DEFAULT = {
-	flags: [],
-	date: nil
+		flags: [],
+		date: nil
 	}
-
-	#Le @ permet de dire que la variable appartient au module
-	@tableau_taches = [
-		{ id: 0, :content => "Ameliorer Taskman", flags: %w(important urgent) }
-		#[0, "ameliorer taskman", "flags", "important, urgent"]	
-	]
-
-	def self.supprimer id
-		#reject{} attend que l'élément renvoie vrai ou faux
-		#S'il renvoie vrai, l'élément est rejetté du tableau final
-		@tableau_taches = @tableau_taches.reject{ |tache| tache[:id]==id.to_i}
-	end
 
 	#Retourne une tâche
 	def self.ajouter params
 		contenu = params.shift
+		id = @tableau_taches.map{ |tache| tache.id}.max+1
 
-		tache = {}
+		new_task = Task.new id, contenu
 
 		#On ajoute un élémént dans le tableau
 		#.map est comme .each et permet de rajouter un élément à chaque élément du tableau
-		tache[:id] = @tableau_taches.map{ |tache| tache[:id]}.max+1
+		#tache[:id] = @tableau_taches.map{ |tache| tache[:id]}.max+1
 
 		#La fonction merge permet d'initiser le hash tache avec les données 
 		#de OPTIONS_DEFAULT
 		#Cela permet ainsi de mettre ses données dans tache[champ.to_sym]
-		tache.merge!(Task::OPTIONS_DEFAULT)
+		#tache.merge!(Task::OPTIONS_DEFAULT)
 
-		tache[:content] = contenu
+		#tache[:content] = contenu
 		params.each do |argument|
 			#On sépare le champ de la valeur grâce au séparateur ":"
 			champ, valeur = argument.split(":")
 
 			if champ == "flags"
-				tache[champ.to_sym] = valeur.split(",")
+				new_task.flags = valeur.split(",")
+				#tache[champ.to_sym] = valeur.split(",")
 			else
-				tache[champ.to_sym] = valeur
+				raise "Paramètre incorrect: #{champ}"
+				#tache[champ.to_sym] = valeur
 			end
 		end
 		#Code de retour de la fonction
-		@tableau_taches << tache
-	end	
+		@tableau_taches << new_task
+	end
+
+	def self.supprimer id
+		#reject{} attend que l'élément renvoie vrai ou faux
+		#S'il renvoie vrai, l'élément est rejetté du tableau final
+		@tableau_taches.reject!{ |tache| tache.id == id }
+	end
 
 	def self.afficher
 		puts "***TASKMAN***"
 		puts "Liste des taches"
-		@tableau_taches.each do |tache|
-			puts "#{tache[:id]} - #{tache[:content]} - (#{tache[:flags].join(",")})"
-		end
+
+		#@tableau_taches.each(&:display)
+		@tableau_taches.each{|tache| tache.afficher }
+	end	
+
+	#attr_accessor :id correspond à tout le code ci-dessous
+	#def id
+	#	@id
+	#end
+	#def id = x
+	#	@id = x
+	#end
+	attr_accessor :id, :content, :flags
+	#attr_reader permet de lire en lecture seule
+	#On ne peut pas moodifier le contenu de la variable
+	#quand la tâche a été faite
+	attr_reader :is_done
+
+	def initialize id, content, opts={}
+		opts = OPTIONS_DEFAULT.merge(opts)
+		@id = id
+		@content = content
+		@flags = opts[:flags]
+		@is_done = false
 	end
+
+	def afficher
+		puts "[#{ @is_done ? "X" : " "}] #{@id} - #{@content} - (#{@flags.join(",")})"
+	end
+
+	def done
+		@is_done = true
+	end
+
+	@tableau_taches = [
+		Task.new(0, "Améliorer Taskman", flags:%w(important urgent))
+		#[0, "ameliorer taskman", "flags", "important, urgent"]	
+	]		
 end
 
 #def on_command action
