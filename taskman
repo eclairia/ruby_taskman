@@ -1,37 +1,37 @@
 #!/usr/bin/env ruby
 
-ARGV.each do |element|
-	p element
-end
-
-$tableau_taches = [
-	{ id: 0, :content => "Ameliorer Taskman", flags: %w(important urgent) }
-	#[0, "ameliorer taskman", "flags", "important, urgent"]	
-]
-
-OPTIONS_DEFAULT = {
+module Task
+	OPTIONS_DEFAULT = {
 	flags: [],
 	date: nil
-}
+	}
 
-def supprimer id
-	#reject{} attend que l'élément renvoie vrai ou faux
-	#S'il renvoie vrai, l'élément est rejetté du tableau final
-	$tableau_taches.reject{ |tache| tache[:id]==id.to_i}
-end
+	#Le @ permet de dire que la variable appartient au module
+	@tableau_taches = [
+		{ id: 0, :content => "Ameliorer Taskman", flags: %w(important urgent) }
+		#[0, "ameliorer taskman", "flags", "important, urgent"]	
+	]
 
-#Retourne une tâche
-def ajouter params
-	contenu = params.shift
+	def self.supprimer id
+		#reject{} attend que l'élément renvoie vrai ou faux
+		#S'il renvoie vrai, l'élément est rejetté du tableau final
+		@tableau_taches = @tableau_taches.reject{ |tache| tache[:id]==id.to_i}
+	end
+
+	#Retourne une tâche
+	def self.ajouter params
+		contenu = params.shift
+
 		tache = {}
+
 		#On ajoute un élémént dans le tableau
 		#.map est comme .each et permet de rajouter un élément à chaque élément du tableau
-		tache[:id] = $tableau_taches.map{ |tache| tache[:id]}.max+1
+		tache[:id] = @tableau_taches.map{ |tache| tache[:id]}.max+1
 
 		#La fonction merge permet d'initiser le hash tache avec les données 
 		#de OPTIONS_DEFAULT
 		#Cela permet ainsi de mettre ses données dans tache[champ.to_sym]
-		tache.merge!(OPTIONS_DEFAULT)
+		tache.merge!(Task::OPTIONS_DEFAULT)
 
 		tache[:content] = contenu
 		params.each do |argument|
@@ -45,14 +45,15 @@ def ajouter params
 			end
 		end
 		#Code de retour de la fonction
-		tache
-end
+		@tableau_taches << tache
+	end	
 
-def afficher
-	puts "***TASKMAN***"
-	puts "Liste des taches"
-	$tableau_taches.each do |tache|
-		puts "#{tache[:id]} - #{tache[:content]} - (#{tache[:flags].join(",")})"
+	def self.afficher
+		puts "***TASKMAN***"
+		puts "Liste des taches"
+		@tableau_taches.each do |tache|
+			puts "#{tache[:id]} - #{tache[:content]} - (#{tache[:flags].join(",")})"
+		end
 	end
 end
 
@@ -70,86 +71,81 @@ end
 #	end
 #end
 
-def on_else_command 
-	if $command_faite.nil?
-		yield(ARGV)
+module Command
+
+	@commandes = {}
+
+	def self.register command, arguments, description, &block
+		#Hash qui contient des hash
+		@commandes[command] = {
+			keyword: command,
+			arguments: arguments,
+			description: description,
+			block: block
+		}
 	end
-end
 
-def afficher_aide
-	puts "taskman [commande], [contenu], [options...]"
-	puts "..........................................."
-	$commandes.each do |k, v|
-		puts "#{v[:keyword]}\t\t #{v[:arguments]}\t\t #{:description}"
-	end
-	#puts "add :id\t\t* Ajouter une tache"
-	#puts "mod :id\t\t* Modifier la tache avec l'identifiant :id"
-	#puts "del :contenu (options...)\t\t* Supprimer la tache avec l'identifiant :id"
-	#puts "list :filtre\t\t* Liste des taches selon le filtre donné"
-end
+	def self.lancer!
+		command = ARGV.shift
 
-#Hash de commandes
-$commandes = {}
-
-def register_command command, arguments, description, &block
-	#Hash qui contient des hash
-	$commandes[command] = {
-		keyword: command,
-		arguments: arguments,
-		description: description,
-		block: block
-	}
-end
-
-#Permet d'afficher la commande
-def lancer_commande 
-	p $commandes
-end
-
-def lancer_commande
-	$command = ARGV.shift
-
-	commande_executee = false
-	$commandes.each do |k, v|
-		if k == $command
-			commande_executee = true
-			v[:block].call(ARGV	)
+		commande_executee = false
+		@commandes.each do |k, v|
+			if k == command
+				commande_executee = true
+				v[:block].call(ARGV	)
+			end
 		end
-	end
 
-	#unless = if not
-	unless commande_executee
-		afficher_aide
+		#unless = if not
+		unless commande_executee
+			afficher_aide
+		end
+	end	
+
+	def self.afficher_aide
+		puts "taskman [commande], [contenu], [options...]"
+		puts "..........................................."
+		@commandes.each do |k, v|
+			puts "#{v[:keyword]}\t\t #{v[:arguments]}\t\t #{:description}"
+		end
+		#puts "add :id\t\t* Ajouter une tache"
+		#puts "mod :id\t\t* Modifier la tache avec l'identifiant :id"
+		#puts "del :contenu (options...)\t\t* Supprimer la tache avec l'identifiant :id"
+		#puts "list :filtre\t\t* Liste des taches selon le filtre donné"
+	end	
+
+	def self.on_else_command 
+		if $command_faite.nil?
+			yield(ARGV)
+		end
 	end
 end
 
 #Enregistre cette commande dans un  hash de fonctions
-register_command 'add', ':contenu (options...)', 'Créer une nouvelle tache' do |arguments|
-	$tableau_taches << ajouter(arguments)
+Command.register 'add', ':contenu (options...)', 'Créer une nouvelle tache' do |arguments|
+	Task.ajouter(arguments)
 end	
 
 #Enregistre cette commande dans un  hash de fonctions
-register_command 'del', ':id', 'Supprimer une tache' do |arguments|
-	supprimer arguments.shift.to_i
+Command.register 'del', ':id', 'Supprimer une tache' do |arguments|
+	Task.supprimer arguments.shift.to_i
 end
 
 #Enregistre cette commande dans un  hash de fonctions
-register_command 'mod', ':id (options...)', 'Modifier une tache' do |arguments|
+Command.register 'mod', ':id (options...)', 'Modifier une tache' do |arguments|
 	#A faire: modifier toutes les tâches
 end
 
 #Enregistre cette commande dans un  hash de fonctions
-register_command 'list', ':filtre', 'Liste des taches' do |arguments|
-	afficher
+Command.register 'list', ':filtre', 'Liste des taches' do |arguments|
+	Task.afficher
 end
 
 #Enregistre cette commande dans un  hash de fonctions
-register_command 'clear', 'Supprime toutes les taches' do |arguments|
+Command.register 'clear', '', 'Supprime toutes les taches' do |arguments|
 	#A faire: Supprimer toutes les tâches
 end
 
-lancer_commande
+Command.lancer!
 
-on_else_command{afficher_aide}
-
-afficher()
+Task.afficher
